@@ -332,6 +332,74 @@ describe("installOpenClawExtension", () => {
 });
 
 describe("uninstallOpenClawExtension", () => {
+  it("also cleans stale tokenjuice-openclaw paths and dirs when the workspace changed between install and uninstall", async () => {
+    const { configPath, home } = await createFakeHome();
+    const oldWorkspace = join(home, "workspace-old");
+    const newWorkspace = join(home, "workspace-new");
+    await mkdir(oldWorkspace, { recursive: true });
+    await mkdir(newWorkspace, { recursive: true });
+
+    // install under the old workspace
+    await writeConfig(configPath, {
+      agents: { defaults: { workspace: oldWorkspace } },
+    });
+    await installOpenClawExtension({ local: true });
+    expect(await pathExists(extensionDirFor(oldWorkspace))).toBe(true);
+
+    // user swaps workspace without running uninstall first
+    await writeConfig(configPath, {
+      agents: { defaults: { workspace: newWorkspace } },
+      plugins: {
+        allow: ["tokenjuice-openclaw"],
+        load: { paths: [extensionDirFor(oldWorkspace)] },
+        entries: { "tokenjuice-openclaw": { enabled: true } },
+      },
+    });
+
+    const result = await uninstallOpenClawExtension();
+
+    // uninstall should have wiped the stale-path extension dir too
+    expect(await pathExists(extensionDirFor(oldWorkspace))).toBe(false);
+    expect(result.removedConfigEntries).toBeGreaterThan(0);
+
+    const config = await readJson(configPath) as Record<string, unknown>;
+    const plugins = config.plugins as Record<string, unknown>;
+    expect(plugins.allow).toEqual([]);
+    expect((plugins.load as Record<string, unknown>).paths).toEqual([]);
+    expect("tokenjuice-openclaw" in (plugins.entries as Record<string, unknown>)).toBe(false);
+  });
+
+  it("reports warn when a stale tokenjuice-openclaw load path lingers after a workspace change", async () => {
+    const { configPath, home } = await createFakeHome();
+    const oldWorkspace = join(home, "workspace-old");
+    const newWorkspace = join(home, "workspace-new");
+    await mkdir(oldWorkspace, { recursive: true });
+    await mkdir(newWorkspace, { recursive: true });
+
+    await writeConfig(configPath, {
+      agents: { defaults: { workspace: oldWorkspace } },
+    });
+    await installOpenClawExtension({ local: true });
+
+    // user changes workspace and manually installs a fresh copy in new workspace,
+    // but forgets to clean up the old load path
+    await writeConfig(configPath, {
+      agents: { defaults: { workspace: newWorkspace } },
+    });
+    await installOpenClawExtension({ local: true });
+
+    // now surface the stale path back into load.paths to simulate a drift
+    const config = await readJson(configPath) as Record<string, unknown>;
+    const plugins = config.plugins as Record<string, unknown>;
+    const load = plugins.load as Record<string, unknown>;
+    load.paths = [...(load.paths as string[]), extensionDirFor(oldWorkspace)];
+    await writeConfig(configPath, config);
+
+    const report = await doctorOpenClawExtension();
+    expect(report.status).toBe("warn");
+    expect(report.issues.join("\n")).toMatch(/stale tokenjuice-openclaw paths in plugins\.load\.paths/u);
+  });
+
   it("removes the extension dir and strips openclaw.json entries", async () => {
     const { configPath, workspaceDir } = await createFakeHome();
     await writeConfig(configPath, {

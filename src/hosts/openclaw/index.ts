@@ -274,15 +274,37 @@ function mergePluginsSection(
   };
 }
 
+function isTokenjuiceOpenClawLoadPath(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const normalized = value.replace(/[/\\]+$/u, "");
+  return normalized.endsWith(`/${TOKENJUICE_OPENCLAW_PLUGIN_ID}`)
+    || normalized.endsWith(`\\${TOKENJUICE_OPENCLAW_PLUGIN_ID}`);
+}
+
+function collectTokenjuiceOpenClawLoadPaths(config: Record<string, unknown>): string[] {
+  if (!isRecord(config.plugins)) {
+    return [];
+  }
+  const load = (config.plugins as Record<string, unknown>).load;
+  if (!isRecord(load) || !Array.isArray(load.paths)) {
+    return [];
+  }
+  return (load.paths as unknown[]).filter((entry): entry is string =>
+    typeof entry === "string" && isTokenjuiceOpenClawLoadPath(entry),
+  );
+}
+
 function removeTokenjuiceFromPluginsSection(
   config: Record<string, unknown>,
-  extensionDir: string,
-): { next: Record<string, unknown>; removed: number } {
+): { next: Record<string, unknown>; removed: number; removedPaths: string[] } {
   if (!isRecord(config.plugins)) {
-    return { next: config, removed: 0 };
+    return { next: config, removed: 0, removedPaths: [] };
   }
   const plugins = { ...config.plugins };
   let removed = 0;
+  const removedPaths: string[] = [];
 
   if (Array.isArray(plugins.allow)) {
     const allowList = plugins.allow as unknown[];
@@ -298,7 +320,16 @@ function removeTokenjuiceFromPluginsSection(
     const load = { ...plugins.load };
     const paths = load.paths as unknown[];
     const before = paths.length;
-    const nextPaths = paths.filter((entry) => entry !== extensionDir);
+    const nextPaths: unknown[] = [];
+    for (const entry of paths) {
+      if (isTokenjuiceOpenClawLoadPath(entry)) {
+        if (typeof entry === "string") {
+          removedPaths.push(entry);
+        }
+        continue;
+      }
+      nextPaths.push(entry);
+    }
     load.paths = nextPaths;
     if (nextPaths.length !== before) {
       removed += 1;
@@ -313,7 +344,7 @@ function removeTokenjuiceFromPluginsSection(
     removed += 1;
   }
 
-  return { next: { ...config, plugins }, removed };
+  return { next: { ...config, plugins }, removed, removedPaths };
 }
 
 async function backupFile(path: string): Promise<string | undefined> {
@@ -393,16 +424,26 @@ export async function uninstallOpenClawExtension(
   const workspaceDir = getWorkspaceDirFromConfig(config) ?? getDefaultWorkspaceDir();
   const extensionDir = getExtensionDir(workspaceDir);
 
+  // Also discover any stale tokenjuice-openclaw extension dirs referenced by
+  // plugins.load.paths, in case the user changed agents.defaults.workspace
+  // between install and uninstall.
+  const staleLoadPaths = collectTokenjuiceOpenClawLoadPaths(config);
+  const dirsToRemove = new Set<string>([extensionDir, ...staleLoadPaths]);
+
   let removedDir = false;
-  if (await pathExists(extensionDir)) {
-    await rm(extensionDir, { recursive: true, force: true });
-    removedDir = true;
+  for (const dir of dirsToRemove) {
+    if (await pathExists(dir)) {
+      await rm(dir, { recursive: true, force: true });
+      if (dir === extensionDir) {
+        removedDir = true;
+      }
+    }
   }
 
   let removedConfigEntries = 0;
   let configBackupPath: string | undefined;
   if (existed) {
-    const { next: nextConfig, removed } = removeTokenjuiceFromPluginsSection(config, extensionDir);
+    const { next: nextConfig, removed } = removeTokenjuiceFromPluginsSection(config);
     removedConfigEntries = removed;
     if (removed > 0) {
       configBackupPath = await backupFile(configPath);
@@ -438,10 +479,12 @@ export async function doctorOpenClawExtension(): Promise<OpenClawDoctorReport> {
     ? plugins.load.paths as unknown[]
     : undefined;
 
+  const loadPathsForTokenjuice = loadPaths ? loadPaths.filter(isTokenjuiceOpenClawLoadPath) : [];
+  const staleLoadPaths = loadPathsForTokenjuice.filter((entry) => entry !== extensionDir);
   const configStillReferencesPlugin = Boolean(
     (allowList && allowList.includes(TOKENJUICE_OPENCLAW_PLUGIN_ID))
     || (entries && TOKENJUICE_OPENCLAW_PLUGIN_ID in entries)
-    || (loadPaths && loadPaths.includes(extensionDir)),
+    || loadPathsForTokenjuice.length > 0,
   );
 
   if (!extensionDirExists) {
@@ -528,6 +571,11 @@ export async function doctorOpenClawExtension(): Promise<OpenClawDoctorReport> {
   if (loadPaths && !loadPaths.includes(extensionDir)) {
     issues.push(
       `${configPath} has plugins.load.paths that does not reference ${extensionDir}; rerun the installer to register the load path`,
+    );
+  }
+  if (staleLoadPaths.length > 0) {
+    issues.push(
+      `${configPath} has stale tokenjuice-openclaw paths in plugins.load.paths: ${staleLoadPaths.join(", ")}; run tokenjuice uninstall openclaw to clean them up or the installer to migrate`,
     );
   }
 
