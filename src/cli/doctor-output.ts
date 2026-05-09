@@ -69,12 +69,12 @@ export function formatHookDoctorReport(report: HookDoctorReport): string {
     if ("featureFlag" in integrationReport && integrationReport.featureFlag) {
       const flag = integrationReport.featureFlag;
       if (flag.enabled) {
-        lines.push(`- feature flag: codex_hooks is enabled (${flag.configPath})`);
+        lines.push(`- feature flag: hooks is enabled (${flag.configPath})`);
       } else {
         const where = flag.configExists
           ? `${flag.configPath} (missing or disabled)`
           : `no ${flag.configPath}`;
-        lines.push(`- feature flag: codex_hooks not enabled — ${where}`);
+        lines.push(`- feature flag: hooks not enabled — ${where}`);
       }
     }
     lines.push(`- repair: ${integrationReport.fixCommand}`);

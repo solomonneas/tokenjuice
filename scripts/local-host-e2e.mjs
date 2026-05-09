@@ -102,7 +102,7 @@ async function runCodexE2E() {
   const codexHome = join(tempRoot, "codex-home");
   const schemaDir = join(tempRoot, "codex-app-server-schema");
   await mkdir(codexHome, { recursive: true });
-  await writeFile(join(codexHome, "config.toml"), "[features]\ncodex_hooks = true\n", "utf8");
+  await writeFile(join(codexHome, "config.toml"), "[features]\nhooks = true\n", "utf8");
 
   const version = await run("codex", ["--version"]);
   await run("codex", ["app-server", "generate-json-schema", "--experimental", "--out", schemaDir], {

@@ -505,12 +505,12 @@ async function runInstall(args: ParsedArgs): Promise<number> {
       { label: "Command", value: result.command },
     ];
     if (result.featureFlag.enabled) {
-      details.push({ label: "Feature flag", value: `codex_hooks is enabled (${result.featureFlag.configPath})` });
+      details.push({ label: "Feature flag", value: `hooks is enabled (${result.featureFlag.configPath})` });
     } else {
       const where = result.featureFlag.configExists
         ? `${result.featureFlag.configPath} (missing or disabled)`
         : `no ${result.featureFlag.configPath}`;
-      details.push({ label: "Feature flag", value: `codex_hooks not enabled - ${where}` });
+      details.push({ label: "Feature flag", value: `hooks not enabled - ${where}` });
       details.push({ label: "Enable", value: result.featureFlag.fixHint });
     }
     if (result.backupPath) {
@@ -1238,13 +1238,13 @@ async function runDoctor(args: ParsedArgs): Promise<number> {
     }
     if (report.featureFlag.enabled) {
       process.stdout.write(
-        `feature flag: codex_hooks is enabled (${report.featureFlag.configPath})\n`,
+        `feature flag: hooks is enabled (${report.featureFlag.configPath})\n`,
       );
     } else {
       const where = report.featureFlag.configExists
         ? `${report.featureFlag.configPath} (missing or disabled)`
         : `no ${report.featureFlag.configPath}`;
-      process.stdout.write(`feature flag: codex_hooks not enabled — ${where}\n`);
+      process.stdout.write(`feature flag: hooks not enabled — ${where}\n`);
       process.stdout.write(`   ${report.featureFlag.fixHint}\n`);
     }
     process.stdout.write(`repair: ${report.fixCommand}\n`);

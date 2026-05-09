@@ -27,55 +27,55 @@ async function withTempCodexHome<T>(
 
 describe("parseCodexFeatureFlag", () => {
   it("returns keyPresent=false when file has no features section", () => {
-    expect(parseCodexFeatureFlag("[other]\nfoo = 1\n", "codex_hooks")).toEqual({
+    expect(parseCodexFeatureFlag("[other]\nfoo = 1\n", "hooks")).toEqual({
       keyPresent: false,
       value: null,
     });
   });
 
   it("parses a scoped [features] section", () => {
-    const source = "[features]\ncodex_hooks = true\n";
-    expect(parseCodexFeatureFlag(source, "codex_hooks")).toEqual({
+    const source = "[features]\nhooks = true\n";
+    expect(parseCodexFeatureFlag(source, "hooks")).toEqual({
       keyPresent: true,
       value: true,
     });
   });
 
   it("parses explicit false", () => {
-    const source = "[features]\ncodex_hooks = false\n";
-    expect(parseCodexFeatureFlag(source, "codex_hooks")).toEqual({
+    const source = "[features]\nhooks = false\n";
+    expect(parseCodexFeatureFlag(source, "hooks")).toEqual({
       keyPresent: true,
       value: false,
     });
   });
 
-  it("parses dotted features.codex_hooks at top level", () => {
-    const source = "features.codex_hooks = true\n[other]\nfoo = 1\n";
-    expect(parseCodexFeatureFlag(source, "codex_hooks")).toEqual({
+  it("parses dotted features.hooks at top level", () => {
+    const source = "features.hooks = true\n[other]\nfoo = 1\n";
+    expect(parseCodexFeatureFlag(source, "hooks")).toEqual({
       keyPresent: true,
       value: true,
     });
   });
 
   it("ignores the key when outside [features]", () => {
-    const source = "[other]\ncodex_hooks = true\n";
-    expect(parseCodexFeatureFlag(source, "codex_hooks")).toEqual({
+    const source = "[other]\nhooks = true\n";
+    expect(parseCodexFeatureFlag(source, "hooks")).toEqual({
       keyPresent: false,
       value: null,
     });
   });
 
   it("ignores commented-out assignments", () => {
-    const source = "[features]\n# codex_hooks = true\n";
-    expect(parseCodexFeatureFlag(source, "codex_hooks")).toEqual({
+    const source = "[features]\n# hooks = true\n";
+    expect(parseCodexFeatureFlag(source, "hooks")).toEqual({
       keyPresent: false,
       value: null,
     });
   });
 
   it("ignores dotted assignments inside a non-root table", () => {
-    const source = "[profiles.default]\nfeatures.codex_hooks = true\n";
-    expect(parseCodexFeatureFlag(source, "codex_hooks")).toEqual({
+    const source = "[profiles.default]\nfeatures.hooks = true\n";
+    expect(parseCodexFeatureFlag(source, "hooks")).toEqual({
       keyPresent: false,
       value: null,
     });
@@ -90,13 +90,13 @@ describe("inspectCodexHooksFeatureFlag", () => {
       expect(status.keyPresent).toBe(false);
       expect(status.value).toBe(null);
       expect(status.enabled).toBe(false);
-      expect(status.fixHint).toContain("codex_hooks");
+      expect(status.fixHint).toContain("hooks");
     });
   });
 
-  it("reports enabled=true when [features] codex_hooks = true", async () => {
+  it("reports enabled=true when [features] hooks = true", async () => {
     await withTempCodexHome(async ({ configPath }) => {
-      await writeFile(configPath, "[features]\ncodex_hooks = true\n", "utf8");
+      await writeFile(configPath, "[features]\nhooks = true\n", "utf8");
       const status = await inspectCodexHooksFeatureFlag(configPath);
       expect(status.configExists).toBe(true);
       expect(status.keyPresent).toBe(true);
@@ -106,15 +106,26 @@ describe("inspectCodexHooksFeatureFlag", () => {
     });
   });
 
-  it("reports enabled=false when codex_hooks is explicitly disabled", async () => {
+  it("reports enabled=false when hooks is explicitly disabled", async () => {
     await withTempCodexHome(async ({ configPath }) => {
-      await writeFile(configPath, "[features]\ncodex_hooks = false\n", "utf8");
+      await writeFile(configPath, "[features]\nhooks = false\n", "utf8");
       const status = await inspectCodexHooksFeatureFlag(configPath);
       expect(status.configExists).toBe(true);
       expect(status.keyPresent).toBe(true);
       expect(status.value).toBe(false);
       expect(status.enabled).toBe(false);
-      expect(status.fixHint).toContain("codex_hooks");
+      expect(status.fixHint).toContain("hooks");
+    });
+  });
+
+
+  it("accepts legacy codex_hooks but marks it deprecated", async () => {
+    await withTempCodexHome(async ({ configPath }) => {
+      await writeFile(configPath, "[features]\ncodex_hooks = true\n", "utf8");
+      const status = await inspectCodexHooksFeatureFlag(configPath);
+      expect(status.enabled).toBe(true);
+      expect(status.keyName).toBe("codex_hooks");
+      expect(status.deprecatedKeyUsed).toBe(true);
     });
   });
 
@@ -128,7 +139,7 @@ describe("inspectCodexHooksFeatureFlag", () => {
     }
 
     await withTempCodexHome(async ({ configPath }) => {
-      await writeFile(configPath, "[features]\ncodex_hooks = true\n", "utf8");
+      await writeFile(configPath, "[features]\nhooks = true\n", "utf8");
       try {
         await chmod(configPath, 0o000);
         const status = await inspectCodexHooksFeatureFlag(configPath);
@@ -152,7 +163,7 @@ describe("installCodexHook feature-flag surface", () => {
         const result = await installCodexHook(hooksPath);
         expect(result.featureFlag.enabled).toBe(false);
         expect(result.featureFlag.configExists).toBe(false);
-        expect(result.featureFlag.fixHint).toContain("codex_hooks");
+        expect(result.featureFlag.fixHint).toContain("hooks");
         // sanity: hooks.json was still written as usual
         const hooks = JSON.parse(await readFile(hooksPath, "utf8"));
         expect(hooks.hooks.PostToolUse).toBeDefined();

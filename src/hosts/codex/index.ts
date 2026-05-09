@@ -66,15 +66,19 @@ export type CodexFeatureFlagStatus = {
   configPath: string;
   /** Whether the config file exists on disk. */
   configExists: boolean;
-  /** Whether a `codex_hooks` key was found anywhere in `[features]`. */
+  /** Whether a supported hooks feature key was found anywhere in `[features]`. */
   keyPresent: boolean;
   /** Parsed value when present, otherwise null. */
   value: boolean | null;
   /** Convenience: keyPresent && value === true. */
   enabled: boolean;
+  /** Which feature key was detected, if any. */
+  keyName?: string;
+  /** Whether the detected key is the deprecated legacy alias. */
+  deprecatedKeyUsed?: boolean;
   /**
    * One-line remediation the user can copy-paste. Empty when enabled.
-   * Currently a `codex exec --enable codex_hooks` hint rather than
+   * Currently a `codex exec --enable hooks` hint rather than
    * editing config.toml automatically (tokenjuice avoids silent
    * config rewrites).
    */
@@ -87,7 +91,7 @@ export type CodexHookCommandOptions = {
   nodePath?: string;
   /**
    * Override for the config.toml consulted when reporting the
-   * `codex_hooks` feature-flag state. Defaults to `~/.codex/config.toml`.
+   * hooks feature-flag state. Defaults to `~/.codex/config.toml`.
    * Exposed primarily for tests and tooling that manage a non-default
    * Codex home.
    */
@@ -127,11 +131,12 @@ function getDefaultCodexConfigPath(): string {
   return join(getCodexHome(), "config.toml");
 }
 
-const FEATURE_FLAG_NAME = "codex_hooks";
+const FEATURE_FLAG_NAME = "hooks";
+const LEGACY_FEATURE_FLAG_NAME = "codex_hooks";
 const FEATURE_FLAG_FIX_HINT =
-  "Codex requires the `codex_hooks` feature to load hooks.json. " +
-  "Enable per-invocation with `codex exec --enable codex_hooks ...`, " +
-  "or persistently by adding a `[features]` section with `codex_hooks = true` to ~/.codex/config.toml.";
+  "Codex requires the `hooks` feature to load hooks.json or inline [hooks]. " +
+  "Enable per-invocation with `codex exec --enable hooks ...`, " +
+  "or persistently by adding a `[features]` section with `hooks = true` to ~/.codex/config.toml.";
 
 function buildCodexFeatureFlagStatus(
   configPath: string,
@@ -148,7 +153,7 @@ function buildCodexFeatureFlagStatus(
 }
 
 /**
- * Read-only scan of ~/.codex/config.toml for `codex_hooks = <bool>` under
+ * Read-only scan of ~/.codex/config.toml for `hooks = <bool>` under
  * a `[features]` section (top-level or dotted form). Does NOT edit the
  * file — tokenjuice prefers to surface the state and let the user decide.
  *
@@ -173,20 +178,24 @@ export async function inspectCodexHooksFeatureFlag(
   }
 
   const parsed = parseCodexFeatureFlag(source, FEATURE_FLAG_NAME);
-  const enabled = parsed.keyPresent && parsed.value === true;
+  const legacyParsed = parsed.keyPresent ? { keyPresent: false, value: null } : parseCodexFeatureFlag(source, LEGACY_FEATURE_FLAG_NAME);
+  const selected = parsed.keyPresent ? parsed : legacyParsed;
+  const enabled = selected.keyPresent && selected.value === true;
   return {
     configPath,
     configExists: true,
-    keyPresent: parsed.keyPresent,
-    value: parsed.keyPresent ? parsed.value : null,
+    keyPresent: selected.keyPresent,
+    value: selected.keyPresent ? selected.value : null,
     enabled,
+    ...(selected.keyPresent ? { keyName: parsed.keyPresent ? FEATURE_FLAG_NAME : LEGACY_FEATURE_FLAG_NAME } : {}),
+    ...(legacyParsed.keyPresent ? { deprecatedKeyUsed: true } : {}),
     fixHint: enabled ? "" : FEATURE_FLAG_FIX_HINT,
   };
 }
 
 /**
- * Minimal TOML-ish scanner. Looks for `codex_hooks = <bool>` either under
- * a `[features]` header or as a dotted `features.codex_hooks = <bool>`
+ * Minimal TOML-ish scanner. Looks for `<key> = <bool>` either under
+ * a `[features]` header or as a dotted `features.<key> = <bool>`
  * assignment at any indent. Ignores comments and in-line comments.
  * Not a full TOML parser; only the shapes Codex itself documents.
  */
@@ -777,7 +786,12 @@ export async function doctorCodexHook(
   }
   if (!featureFlag.enabled) {
     issues.push(
-      "Codex feature flag `codex_hooks` is not enabled — the configured hook will not fire",
+      "Codex feature flag `hooks` is not enabled — the configured hook will not fire",
+    );
+  }
+  if (featureFlag.deprecatedKeyUsed) {
+    issues.push(
+      "Codex feature flag `codex_hooks` is deprecated — rename it to `hooks` in ~/.codex/config.toml",
     );
   }
   issues.push(...collectLowTimeoutWarnings(config));

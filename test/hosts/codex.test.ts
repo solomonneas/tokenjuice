@@ -226,7 +226,7 @@ describe("doctorCodexHook", () => {
     await mkdir(binDir, { recursive: true });
     await writeFile(launcherPath, "#!/usr/bin/env bash\nexit 0\n", { encoding: "utf8", mode: 0o755 });
     const featureFlagConfigPath = join(home, "config.toml");
-    await writeFile(featureFlagConfigPath, "[features]\ncodex_hooks = true\n", "utf8");
+    await writeFile(featureFlagConfigPath, "[features]\nhooks = true\n", "utf8");
     await installCodexHook(hooksPath, { featureFlagConfigPath });
 
     const report = await doctorCodexHook(hooksPath, { featureFlagConfigPath });
@@ -251,7 +251,7 @@ describe("doctorCodexHook", () => {
     await mkdir(cellarBinDir, { recursive: true });
     await writeFile(resolvedLauncherPath, "#!/usr/bin/env bash\nexit 0\n", { encoding: "utf8", mode: 0o755 });
     await symlink(resolvedLauncherPath, launcherPath);
-    await writeFile(featureFlagConfigPath, "[features]\ncodex_hooks = true\n", "utf8");
+    await writeFile(featureFlagConfigPath, "[features]\nhooks = true\n", "utf8");
     await installCodexHook(hooksPath, { featureFlagConfigPath });
 
     const report = await doctorCodexHook(hooksPath, { featureFlagConfigPath });
@@ -265,7 +265,7 @@ describe("doctorCodexHook", () => {
     expect(report.issues).not.toContain("configured Codex hook command does not match the current recommended command");
   });
 
-  it("warns when codex_hooks feature flag is not enabled", async () => {
+  it("warns when hooks feature flag is not enabled", async () => {
     const home = await createTempDir();
     const hooksPath = join(home, "hooks.json");
     const binDir = join(home, "bin");
@@ -283,7 +283,7 @@ describe("doctorCodexHook", () => {
     expect(report.status).toBe("warn");
     expect(report.featureFlag.enabled).toBe(false);
     expect(report.issues).toContain(
-      "Codex feature flag `codex_hooks` is not enabled — the configured hook will not fire",
+      "Codex feature flag `hooks` is not enabled — the configured hook will not fire",
     );
   });
 
@@ -357,7 +357,7 @@ describe("doctorCodexHook", () => {
     process.env.PATH = binDir;
     await mkdir(binDir, { recursive: true });
     await writeFile(launcherPath, "#!/usr/bin/env bash\nexit 0\n", { encoding: "utf8", mode: 0o755 });
-    await writeFile(featureFlagConfigPath, "[features]\ncodex_hooks = true\n", "utf8");
+    await writeFile(featureFlagConfigPath, "[features]\nhooks = true\n", "utf8");
     await writeFile(
       hooksPath,
       `${JSON.stringify({
@@ -418,7 +418,7 @@ describe("doctorCodexHook", () => {
     await writeFile(localCliPath, "console.log('tokenjuice');\n", "utf8");
 
     const featureFlagConfigPath = join(home, "config.toml");
-    await writeFile(featureFlagConfigPath, "[features]\ncodex_hooks = true\n", "utf8");
+    await writeFile(featureFlagConfigPath, "[features]\nhooks = true\n", "utf8");
     await installCodexHook(hooksPath, {
       local: true,
       binaryPath: localCliPath,
