@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.8.0 - 2026-05-25
+
 ### Features
 
 - Add a beta Agent Layer source-instruction integration.
