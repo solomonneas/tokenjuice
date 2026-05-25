@@ -903,6 +903,59 @@ describe("reduceExecution", () => {
     expect(result.inlineText).toBe("custom: checks passed");
   });
 
+  it("bypasses rule-level matchOutput short-circuits when noOmit is enabled", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "tokenjuice-no-omit-match-output-"));
+    tempDirs.push(cwd);
+    const rulesDir = join(cwd, ".tokenjuice", "rules", "custom");
+    await mkdir(rulesDir, { recursive: true });
+    await writeFile(
+      join(rulesDir, "match-output.json"),
+      JSON.stringify({
+        id: "custom/match-output",
+        family: "custom",
+        match: {
+          argv0: ["custom-tool"],
+        },
+        matchOutput: [
+          {
+            pattern: "All checks passed",
+            message: "custom: checks passed",
+          },
+        ],
+        transforms: {
+          trimEmptyEdges: true,
+        },
+        summarize: {
+          head: 1,
+          tail: 1,
+        },
+      }, null, 2),
+      "utf8",
+    );
+
+    const result = await reduceExecution({
+      toolName: "exec",
+      command: "custom-tool check",
+      argv: ["custom-tool", "check"],
+      combinedText: [
+        "Preparing workspace...",
+        "All checks passed in 42ms",
+        "Additional verbose line that should be retained",
+      ].join("\n"),
+      exitCode: 0,
+    }, {
+      cwd,
+      noOmit: true,
+      maxInlineChars: 20_000,
+    });
+
+    expect(result.classification.matchedReducer).toBe("custom/match-output");
+    expect(result.inlineText).toContain("Preparing workspace...");
+    expect(result.inlineText).toContain("All checks passed in 42ms");
+    expect(result.inlineText).toContain("Additional verbose line that should be retained");
+    expect(result.inlineText).not.toBe("custom: checks passed");
+  });
+
   it("pretty-prints minified JSON before applying line-based reducers when enabled", async () => {
     const result = await reduceExecution({
       toolName: "sessions_history",
@@ -1227,6 +1280,70 @@ describe("reduceExecution", () => {
     });
   });
 
+  it("keeps full git diff content and facts when noOmit is enabled", async () => {
+    const changedLines = Array.from({ length: 30 }, (_, index) => `+const value${index} = "${"x".repeat(300)}";`);
+    const result = await reduceExecution({
+      toolName: "exec",
+      command: "git diff -- src/index.ts",
+      argv: ["git", "diff", "--", "src/index.ts"],
+      combinedText: [
+        "diff --git a/src/index.ts b/src/index.ts",
+        "index 1111111..2222222 100644",
+        "--- a/src/index.ts",
+        "+++ b/src/index.ts",
+        "@@ -1,3 +1,33 @@",
+        " const unchangedContext = true;",
+        "-const old = true;",
+        ...changedLines,
+      ].join("\n"),
+      exitCode: 0,
+    }, {
+      noOmit: true,
+      maxInlineChars: 30_000,
+    });
+
+    expect(result.classification.matchedReducer).toBe("git/diff");
+    expect(result.inlineText).toContain("30 added lines");
+    expect(result.inlineText).toContain("1 removed line");
+    expect(result.inlineText).toContain(" const unchangedContext = true;");
+    expect(result.inlineText).toContain("value29");
+    expect(result.inlineText).not.toContain("hunk clipped");
+    expect(result.inlineText).not.toContain("sha256:");
+    expect(result.inlineText).not.toContain("omitted");
+    expect(result.compaction?.authoritative).toBe(false);
+    expect(result.compaction?.kinds).toEqual(expect.arrayContaining([
+      "no-omit-domain-passthrough",
+      "no-omit-char-clip-passthrough",
+    ]));
+  });
+
+  it("bypasses rule filters and adjacent dedupe when noOmit is enabled", async () => {
+    const result = await reduceExecution({
+      toolName: "exec",
+      command: "pnpm test",
+      argv: ["pnpm", "test"],
+      combinedText: [
+        "> tokenjuice test /repo",
+        " RUN  v3.2.4 /repo",
+        "debug line not matched by keepPatterns",
+        "debug line not matched by keepPatterns",
+        " ✓ test/core/example.test.ts (1 test) 3ms",
+        " Test Files  1 passed (1)",
+        " Tests  1 passed (1)",
+        " Duration  100ms",
+      ].join("\n"),
+      exitCode: 0,
+    }, {
+      noOmit: true,
+      maxInlineChars: 20_000,
+    });
+
+    expect(result.classification.matchedReducer).toBe("tests/pnpm-test");
+    expect(result.inlineText).toContain("> tokenjuice test /repo");
+    expect(result.inlineText).toContain(" RUN  v3.2.4 /repo");
+    expect(result.inlineText.match(/debug line not matched by keepPatterns/gu)).toHaveLength(2);
+  });
+
   it("clears lossy compaction metadata when passthrough text wins", async () => {
     const rawText = `${Array.from({ length: 13 }, (_, index) => `v${index}`).join("\n")}\n`;
     const result = await reduceExecution({
@@ -1299,6 +1416,91 @@ describe("reduceExecution", () => {
     expect(result.inlineText).toContain("{bug, bug:behavior}");
     expect(result.inlineText).toContain("2026-04-16");
     expect(result.inlineText).not.toContain("\"number\":67473");
+  });
+
+  it("keeps all gh status check attention lines when noOmit is enabled", async () => {
+    const result = await reduceExecution({
+      toolName: "exec",
+      command: "gh pr view 42 --json statusCheckRollup",
+      argv: ["gh", "pr", "view", "42", "--json", "statusCheckRollup"],
+      combinedText: JSON.stringify({
+        statusCheckRollup: Array.from({ length: 15 }, (_, index) => ({
+          name: `check-${index}`,
+          status: "COMPLETED",
+          conclusion: "FAILURE",
+          workflowName: "ci",
+          detailsUrl: `https://example.com/check-${index}`,
+        })),
+      }),
+      exitCode: 0,
+    }, {
+      noOmit: true,
+      maxInlineChars: 20_000,
+    });
+
+    expect(result.classification.matchedReducer).toBe("cloud/gh");
+    expect(result.inlineText).toContain("status checks: 0 ok, 15 attention");
+    expect(result.inlineText).toContain("check check-14 [FAILURE]");
+    expect(result.inlineText).not.toContain("attention checks omitted");
+    expect(result.compaction?.authoritative).toBe(false);
+    expect(result.compaction?.kinds).toEqual(expect.arrayContaining(["no-omit-domain-passthrough"]));
+  });
+
+  it("keeps all gh labels when noOmit is enabled", async () => {
+    const result = await reduceExecution({
+      toolName: "exec",
+      command: "gh issue view 42 --json number,title,labels",
+      argv: ["gh", "issue", "view", "42", "--json", "number,title,labels"],
+      combinedText: JSON.stringify({
+        number: 42,
+        title: "Needs many labels",
+        labels: ["bug", "regression", "platform:macos", "area:cli", "priority:high"],
+      }),
+      exitCode: 0,
+    }, {
+      noOmit: true,
+      maxInlineChars: 20_000,
+    });
+
+    expect(result.classification.matchedReducer).toBe("cloud/gh");
+    expect(result.inlineText).toContain("{bug, regression, platform:macos, area:cli, priority:high}");
+  });
+
+  it("keeps successful gh status checks when noOmit is enabled", async () => {
+    const result = await reduceExecution({
+      toolName: "exec",
+      command: "gh pr view 42 --json statusCheckRollup",
+      argv: ["gh", "pr", "view", "42", "--json", "statusCheckRollup"],
+      combinedText: JSON.stringify({
+        statusCheckRollup: [
+          {
+            name: "build",
+            status: "COMPLETED",
+            conclusion: "SUCCESS",
+            workflowName: "ci",
+            detailsUrl: "https://example.com/build",
+          },
+          {
+            name: "lint",
+            status: "COMPLETED",
+            conclusion: "FAILURE",
+            workflowName: "ci",
+            detailsUrl: "https://example.com/lint",
+          },
+        ],
+      }),
+      exitCode: 0,
+    }, {
+      noOmit: true,
+      maxInlineChars: 20_000,
+    });
+
+    expect(result.classification.matchedReducer).toBe("cloud/gh");
+    expect(result.inlineText).toContain("status checks: 1 ok, 1 attention");
+    expect(result.inlineText).toContain("check build [SUCCESS]");
+    expect(result.inlineText).toContain("check lint [FAILURE]");
+    expect(result.compaction?.authoritative).toBe(false);
+    expect(result.compaction?.kinds).toEqual(expect.arrayContaining(["no-omit-domain-passthrough"]));
   });
 
   it("treats ghx as a GitHub CLI drop-in replacement", async () => {
@@ -1942,6 +2144,37 @@ describe("reduceExecution", () => {
     expect(result.inlineText).toContain("non-signal log lines omitted");
     expect(result.inlineText).not.toContain("progress line 0");
     expect(result.compaction).toEqual({ authoritative: true, kinds: ["github-actions-log-signal-filter"] });
+  });
+
+  it("keeps full gh run logs when noOmit is enabled", async () => {
+    const filler = Array.from(
+      { length: 80 },
+      (_, index) =>
+        `checks-node-core\tRun test shard\t2026-04-28T06:34:${String(index % 60).padStart(2, "0")}.000Z\tprogress line ${index}`,
+    );
+    const result = await reduceExecution({
+      toolName: "exec",
+      command: "gh run view 25037757449 --repo openclaw/openclaw --log",
+      argv: ["gh", "run", "view", "25037757449", "--log"],
+      combinedText: [
+        ...filler.slice(0, 40),
+        "checks-node-core\tRun test shard\t2026-04-28T06:35:06.000Z\t##[error]test/core/reduce.test.ts(41,7): expected gh log passthrough",
+        "checks-node-core\tRun test shard\t2026-04-28T06:35:07.000Z\tELIFECYCLE Command failed with exit code 2",
+        ...filler.slice(40),
+      ].join("\n"),
+      exitCode: 0,
+    }, {
+      noOmit: true,
+      maxInlineChars: 20_000,
+    });
+
+    expect(result.classification.matchedReducer).toBe("cloud/gh");
+    expect(result.inlineText).toContain("progress line 0");
+    expect(result.inlineText).toContain("progress line 79");
+    expect(result.inlineText).toContain("expected gh log passthrough");
+    expect(result.inlineText).not.toContain("non-signal log lines omitted");
+    expect(result.compaction?.authoritative).toBe(false);
+    expect(result.compaction?.kinds).toEqual(expect.arrayContaining(["no-omit-domain-passthrough"]));
   });
 
   it("filters gh run --log-failed output around explicit error annotations", async () => {
