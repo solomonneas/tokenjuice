@@ -733,6 +733,9 @@ export function decorateWrapInlineText(result: WrapResult["result"], raw: boolea
     "",
     "---",
     buildCompactionFooter(rawChars, reducedChars),
+    result.rawRef?.id
+      ? `Raw output is available locally: tokenjuice cat ${result.rawRef.id}`
+      : "Full output: re-run with tokenjuice wrap --raw -- <command>",
   ].join("\n");
   return `${result.inlineText}${footer}`;
 }

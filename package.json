@@ -1,6 +1,6 @@
 {
   "name": "tokenjuice",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Lean output compaction for terminal-heavy agent workflows.",
   "keywords": [
     "cli",
@@ -10,9 +10,9 @@
     "context",
     "developer-tools"
   ],
-  "homepage": "https://github.com/solomonneas/tokenjuice",
+  "homepage": "https://github.com/escoffier-labs/tokenjuice",
   "bugs": {
-    "url": "https://github.com/solomonneas/tokenjuice/issues"
+    "url": "https://github.com/escoffier-labs/tokenjuice/issues"
   },
   "funding": {
     "type": "github",
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/solomonneas/tokenjuice.git"
+    "url": "git+https://github.com/escoffier-labs/tokenjuice.git"
   },
   "license": "MIT",
   "type": "module",
@@ -55,7 +55,7 @@
     "generate:builtin-rules": "node scripts/generate-builtin-rules.mjs",
     "prepare": "pnpm repair:pnpm-bin-shims",
     "repair:pnpm-bin-shims": "node scripts/repair-pnpm-bin-shims.mjs",
-    "build": "rm -rf dist && pnpm generate:builtin-rules && tsc -p tsconfig.json && node scripts/build-pi-runtime.mjs && node scripts/build-opencode-runtime.mjs && mkdir -p dist/rules && cp -R src/rules/. dist/rules/",
+    "build": "node scripts/clean-dist.mjs && pnpm generate:builtin-rules && tsc -p tsconfig.json && node scripts/build-pi-runtime.mjs && node scripts/build-opencode-runtime.mjs && node scripts/copy-rules.mjs",
     "lint": "oxlint --deny-warnings src test scripts",
     "lint:circular": "madge --circular --extensions ts,mjs --ts-config tsconfig.json src",
     "release:artifacts": "node scripts/build-release.mjs",
@@ -70,11 +70,11 @@
   },
   "devDependencies": {
     "@types/node": "^24.7.0",
-    "esbuild": "^0.25.11",
+    "esbuild": "^0.28.1",
     "madge": "^8.0.0",
     "oxlint": "^1.61.0",
     "publint": "^0.3.18",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.0"
   }
 }

@@ -29,7 +29,7 @@ Most of tokenjuice (the reducer engine, the host integration matrix, the CLI sur
 ## Local dev
 
 ```bash
-git clone https://github.com/solomonneas/tokenjuice.git
+git clone https://github.com/escoffier-labs/tokenjuice.git
 cd tokenjuice
 pnpm install
 pnpm build

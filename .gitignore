@@ -7,3 +7,4 @@ release
 test/**/*.js
 test/**/*.d.ts
 .claude/
+.brigade/

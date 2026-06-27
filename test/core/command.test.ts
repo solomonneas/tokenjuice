@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   deriveCommandMatchCandidates,
   getGitSubcommand,
+  hasMultipleSubstantiveShellCommands,
   hasSequentialShellCommands,
   isFileContentInspectionCommand,
   isRepositoryInspectionCommand,
+  isVerbatimConfigInspectionCommand,
   normalizeCommandSignature,
   normalizeEffectiveCommandSignature,
   normalizeExecutionInput,
@@ -371,6 +373,26 @@ describe("hasSequentialShellCommands", () => {
   });
 });
 
+describe("hasMultipleSubstantiveShellCommands", () => {
+  it.each([
+    "grep -i github /etc/hosts; echo '---dig:'; dig +short api.github.com @1.1.1.1; scutil --dns",
+    "cd repo && swift test && rg -n failure src",
+    "command -v rg || cargo install ripgrep; rg --files src",
+    "bash -lc 'grep -i github /etc/hosts; dig +short api.github.com @1.1.1.1'",
+  ])("detects `%s` as multiple substantive commands", (command) => {
+    expect(hasMultipleSubstantiveShellCommands({ command })).toBe(true);
+  });
+
+  it.each([
+    "cd repo && pnpm test",
+    "source .env && cargo test",
+    "if command -v tt >/dev/null 2>&1; then tt title 'tests'; else tmux select-pane -T 'tests' 2>/dev/null || true; fi; pnpm test",
+    "bash -lc 'cd repo && pnpm test'",
+  ])("keeps setup-wrapped `%s` as one substantive command", (command) => {
+    expect(hasMultipleSubstantiveShellCommands({ command })).toBe(false);
+  });
+});
+
 describe("getGitSubcommand", () => {
   it.each([
     { command: "git ls-files src", subcommand: "ls-files" },
@@ -421,6 +443,40 @@ describe("isFileContentInspectionCommand", () => {
 
   it("does not treat git show commit summaries as file inspection", () => {
     expect(isFileContentInspectionCommand({ command: "git show HEAD --stat" })).toBe(false);
+  });
+
+});
+
+describe("isVerbatimConfigInspectionCommand", () => {
+  it.each([
+    { label: "plutil print", command: "plutil -p /Library/LaunchDaemons/com.example.daemon.plist" },
+    { label: "plutil convert to stdout", command: "plutil -convert json -o - settings.plist" },
+    { label: "read-only config get", command: "openclaw config get agents.defaults" },
+    { label: "ssh-wrapped cat", command: "ssh build-host 'cat /etc/hosts'" },
+    { label: "ssh-wrapped cat with compression", command: "ssh -C build-host 'cat /etc/hosts'" },
+    { label: "ssh-wrapped cat with cipher", command: "ssh -c aes128-ctr build-host 'cat /etc/hosts'" },
+    { label: "ssh-wrapped cat with bind interface", command: "ssh -B en0 build-host 'cat /etc/hosts'" },
+    { label: "ssh-wrapped cat with tag", command: "ssh -P audit build-host 'cat /etc/hosts'" },
+    { label: "ssh-wrapped shell runner", command: "ssh build-host \"bash -lc 'cat /etc/hosts'\"" },
+    { label: "ssh-wrapped plutil with ssh options", command: "ssh -p 2222 -i ~/.ssh/id_ed25519 build-host 'plutil -p /Library/LaunchDaemons/com.example.daemon.plist'" },
+    { label: "ssh-wrapped read-only config get", command: "ssh build-host 'openclaw config get gateway'" },
+    { label: "ssh-wrapped gh contents decode", command: "ssh build-host 'gh api repos/o/r/contents/file --jq .content | base64 --decode'" },
+  ])("detects $label as a verbatim config inspection", ({ command }) => {
+    expect(isVerbatimConfigInspectionCommand({ command })).toBe(true);
+  });
+
+  it.each([
+    "plutil -convert binary1 settings.plist",
+    "openclaw config set agents.defaults.model test",
+    "ssh build-host 'rm -rf /tmp/scratch'",
+    "ssh build-host",
+    "ssh build-host 'cat /etc/hosts && pytest -q'",
+    "ssh build-host \"bash -lc 'cat /etc/hosts; pytest -q'\"",
+    "ssh build-host 'gh api repos/o/r/contents/file --jq .content | base64 --decode; pytest -q'",
+    "bash -lc 'openclaw config get gateway' && pytest -q",
+    "ssh build-host \"bash -lc 'cat /etc/hosts' && pytest -q\"",
+  ])("does not treat `%s` as a verbatim config inspection", (command) => {
+    expect(isVerbatimConfigInspectionCommand({ command })).toBe(false);
   });
 });
 

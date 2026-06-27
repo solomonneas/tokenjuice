@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/vincentkoc/tokenjuice
     about: This repository is a fork. For the original project, its npm package, its Homebrew tap, and issues that are not specific to this fork, see the upstream project by Vincent Koc.
   - name: Security report
-    url: https://github.com/solomonneas/tokenjuice/security/policy
+    url: https://github.com/escoffier-labs/tokenjuice/security/policy
     about: Do not file security issues publicly. See SECURITY.md.

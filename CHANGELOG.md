@@ -2,17 +2,24 @@
 
 ## Unreleased
 
+### Fixes
+
+- Replace the compacted-output footer with a neutral, factual marker (characters omitted plus how to retrieve the full output) and only emit it when compaction removed a substantial amount, so tokenjuice no longer appends do-not-verify directives or footnotes tiny, untruncated output.
+- Harden ownership detection, restoration, and malformed marker handling for beta host integrations.
+- Build release artifacts from explicit tags and validate Homebrew tap release-tag input.
+- Make `pnpm build` portable across supported Node platforms.
+
 ### Documentation
 
 - Rework the README to lead with what tokenjuice does, why, and how this fork differs, and add "Why not something else?", "What tokenjuice is not", and "What this fork changes" sections.
-- Add a prominent fork credit to [vincentkoc/tokenjuice](https://github.com/vincentkoc/tokenjuice) by Vincent Koc, used and extended under the MIT license, and document install-from-source for this fork (the npm package and Homebrew tap install upstream's build, not this fork).
+- Add a prominent fork credit to [vincentkoc/tokenjuice](https://github.com/vincentkoc/tokenjuice) by Vincent Koc, used and extended under the MIT license (we also contribute upstream), and document install-from-source for this fork (the npm package and Homebrew tap install upstream's build, not this fork).
 - Add `CONTRIBUTING.md` (with an upstream-contribution path) and `CODE_OF_CONDUCT.md`.
 - Add GitHub issue templates (`bug.yml`, `feature.yml`, `config.yml` with `blank_issues_enabled: false` and an upstream contact link) and a pull request template with a no-PII / content-guard checkbox.
 
 ### Changed
 
 - Add a second copyright line (`Copyright (c) 2026 Solomon Neas`) to `LICENSE` alongside the retained upstream copyright of Vincent Koc; both remain under the same MIT license.
-- Re-point `package.json` `homepage`, `bugs`, and `repository` at `solomonneas/tokenjuice` for this fork; the npm package name and version are unchanged, and the upstream sponsorship link is retained.
+- Re-point `package.json` `homepage`, `bugs`, and `repository` at `escoffier-labs/tokenjuice` for this fork; the npm package name and version are unchanged, and the upstream sponsorship link is retained.
 
 ## 0.8.0 - 2026-05-25
 

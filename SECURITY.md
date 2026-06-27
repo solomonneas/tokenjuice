@@ -13,7 +13,7 @@ security fixes are applied to the latest released version.
 
 please use GitHub's private vulnerability reporting flow for this repository:
 
-- go to the `Security` tab in `solomonneas/tokenjuice`
+- go to the `Security` tab in `escoffier-labs/tokenjuice`
 - choose `Report a vulnerability`
 
 please do not open a public issue for an unpatched vulnerability.

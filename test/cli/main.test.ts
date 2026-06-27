@@ -61,6 +61,33 @@ describe("decorateWrapInlineText", () => {
     }
   });
 
+  it("provides the raw-artifact recovery command when output is stored", () => {
+    const result: CompactResult = {
+      inlineText: "summary",
+      compaction: {
+        authoritative: true,
+        kinds: ["head-tail-omission"],
+      },
+      rawRef: {
+        id: "tj_0123456789ab",
+        path: "/tmp/tokenjuice/raw.txt",
+        metadataPath: "/tmp/tokenjuice/meta.json",
+      },
+      stats: {
+        rawChars: 4_000,
+        reducedChars: 40,
+        ratio: 0.01,
+      },
+      classification: {
+        family: "generic",
+        confidence: 0.9,
+        matchedReducer: "generic/fallback",
+      },
+    };
+
+    expect(decorateWrapInlineText(result, false)).toContain("tokenjuice cat tj_0123456789ab");
+  });
+
   it("suppresses the footer for lossless rewrites", () => {
     expect(decorateWrapInlineText(makeResult(false, 4_000, 40), false)).toBe("summary");
   });

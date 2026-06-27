@@ -28,16 +28,16 @@ export const WRAP_COMPACTION_FOOTER_PREFIX = "[tokenjuice]";
 /**
  * Build the neutral marker appended to compacted wrap output.
  *
- * It states only facts: that output was compacted to save tokens, how many
- * characters were omitted, and how to obtain the full output. It contains no
- * agent-directed instructions and makes no claim that the omitted content is
- * unrecoverable, so it never discourages the reader from verifying or
- * re-running. This keeps tokenjuice a transparent output adapter rather than a
- * source of do-not-verify directives.
+ * It states only facts: that output was compacted to save tokens and how many
+ * characters were omitted. It contains no agent-directed instructions and makes
+ * no claim that the omitted content is unrecoverable, so it never discourages
+ * the reader from verifying or re-running. This keeps tokenjuice a transparent
+ * output adapter rather than a source of do-not-verify directives. The caller
+ * appends a factual pointer to the full output (a stored raw ref, or `--raw`).
  */
 export function buildCompactionFooter(rawChars: number, reducedChars: number): string {
   const omitted = Math.max(0, rawChars - reducedChars);
-  return `${WRAP_COMPACTION_FOOTER_PREFIX} Output compacted to save tokens (${omitted} of ${rawChars} characters omitted). Full output: tokenjuice wrap --raw -- <command>`;
+  return `${WRAP_COMPACTION_FOOTER_PREFIX} Output compacted to save tokens (${omitted} of ${rawChars} characters omitted).`;
 }
 
 function buildCompactionMetadata(authoritative: boolean, ...kinds: CompactionKind[]): CompactionMetadata {
