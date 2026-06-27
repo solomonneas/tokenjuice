@@ -87,10 +87,9 @@ Shell commands in this workspace are routed through tokenjuice, which
 deterministically compacts noisy output (long file listings, install logs,
 build transcripts, etc.) before returning it to you.
 
-- Output ending with a \`[tokenjuice] ...\` footer is the **complete,
-  authoritative result** for that command. The omitted content is not
-  retrievable by re-running the command, varying flags, or switching tools.
-  Proceed with the task using the compacted output.
+- Output ending with a \`[tokenjuice]\` footer was compacted to save tokens;
+  the footer notes how many characters were omitted and where the full
+  output is available if you need it.
 - If a specific command genuinely requires raw, uncompacted bytes (e.g.,
   reading exact file contents for a diff, inspecting a log line-by-line),
   prefix that single command with \`tokenjuice wrap --raw --\`:

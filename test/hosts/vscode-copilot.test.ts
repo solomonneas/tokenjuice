@@ -606,6 +606,9 @@ describe("getVscodeCopilotInstructionsSnippet", () => {
     expect(snippet).toContain("tokenjuice:vscode-copilot BEGIN");
     expect(snippet).toContain("tokenjuice:vscode-copilot END");
     expect(snippet).toContain("tokenjuice wrap --raw --");
-    expect(snippet).toContain("authoritative");
+    expect(snippet).toContain("compacted to save tokens");
+    for (const banned of ["authoritative", "not retrievable", "Proceed with the task"]) {
+      expect(snippet).not.toContain(banned);
+    }
   });
 });

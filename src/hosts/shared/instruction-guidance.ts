@@ -10,8 +10,7 @@ export function buildTokenjuiceGuidanceBullets(options: TokenjuiceGuidanceOption
   const wrapBullet = options.wrapBullet ?? `- For terminal commands likely to produce long output, run them through \`${TOKENJUICE_WRAP_COMMAND}\`.`;
   return [
     wrapBullet,
-    "- Treat compacted tokenjuice output as authoritative unless it explicitly says raw output is required.",
+    "- A compacted result ends with a `[tokenjuice]` line noting how many characters were omitted and how to retrieve the full output.",
     `- If raw bytes are required, rerun the command with exactly \`${TOKENJUICE_RAW_COMMAND}\`.`,
-    "- Do not suggest both raw and full reruns; use the raw escape hatch.",
   ];
 }

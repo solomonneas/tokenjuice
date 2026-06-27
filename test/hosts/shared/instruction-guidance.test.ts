@@ -11,9 +11,12 @@ describe("buildTokenjuiceGuidanceBullets", () => {
     const bullets = buildTokenjuiceGuidanceBullets();
 
     expect(bullets[0]).toContain(TOKENJUICE_WRAP_COMMAND);
-    expect(bullets[1]).toContain("authoritative");
+    expect(bullets[1]).toContain("omitted");
     expect(bullets[2]).toContain(TOKENJUICE_RAW_COMMAND);
-    expect(bullets[3]).toContain("raw escape hatch");
+    expect(bullets).toHaveLength(3);
+    for (const banned of ["authoritative", "Do not", "not retrievable", "Proceed with the task"]) {
+      expect(bullets.join("\n")).not.toContain(banned);
+    }
   });
 
   it("allows hosts to customize the wrap guidance while sharing the remaining bullets", () => {

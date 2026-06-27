@@ -5,6 +5,7 @@
 ### Fixes
 
 - Replace the compacted-output footer with a neutral, factual marker (characters omitted plus how to retrieve the full output) and only emit it when compaction removed a substantial amount, so tokenjuice no longer appends do-not-verify directives or footnotes tiny, untruncated output.
+- Neutralize the agent-directed guidance tokenjuice injects into host instruction files (Copilot CLI, VS Code Copilot, and the shared bullets every host uses): drop the "treat compacted output as authoritative" and "do not re-run / proceed with the compacted output" language in favor of a factual description of the footer, matching the neutral wrap footer.
 - Harden ownership detection, restoration, and malformed marker handling for beta host integrations.
 - Build release artifacts from explicit tags and validate Homebrew tap release-tag input.
 - Make `pnpm build` portable across supported Node platforms.
