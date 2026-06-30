@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/tokenjuice-social-preview.jpg" alt="Token Glace banner" width="900">
+  <img src="docs/assets/token-glace-social-preview.jpg" alt="Token Glace banner" width="900">
 </p>
 
 <h1 align="center">Token Glace</h1>

@@ -26,6 +26,8 @@ describe("Token Glace branding", () => {
     const readme = await readFile("README.md", "utf8");
 
     expect(readme).toContain("<h1 align=\"center\">Token Glace</h1>");
+    expect(readme).toContain("docs/assets/token-glace-social-preview.jpg");
+    expect(readme).not.toContain("docs/assets/tokenjuice-social-preview.jpg");
     expect(readme).toContain("`token-glace --help`");
     expect(readme).not.toContain("\u{1F9C3}");
   });
